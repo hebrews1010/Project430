@@ -1,0 +1,77 @@
+# Miscellaneous / OS Specific
+.DS_Store
+.atom/
+.build/
+.buildlog/
+.history
+.svn/
+.swiftpm/
+migrate_working_dir/
+*.log
+*.class
+*.swp
+*.pyc
+
+# IDE related (IntelliJ / Android Studio)
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# VS Code (uncomment if you wish to ignore VS Code specific settings)
+#.vscode/
+
+# Flutter / Dart / Pub related
+/build/
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.flutter-plugins-generated # 추가: 새로 생성되는 플러그인 종속성
+.pub-cache/
+.pub/
+.packages
+*.lock # pubspec.lock 등
+
+# Generated code (common for code generation packages like freeezed, auto_route)
+*.g.dart
+*.freezed.dart
+*.gr.dart
+
+# Android specific
+/android/app/debug/
+/android/app/profile/
+/android/app/release/
+/android/build/
+/android/.gradle/
+*.apk
+*.ap_
+*.aab
+
+# iOS specific
+/ios/Flutter/Generated.xcconfig
+/ios/Pods/
+/ios/.symlinks/
+/ios/.flutter-plugins
+/ios/.flutter-plugins-dependencies
+/ios/Runner.xcworkspace/xcuserdata/
+/ios/Runner.xcworkspace/xcshareddata/
+*.xcodeproj/project.xcworkspace/xcuserdata/
+*.xcodeproj/project.xcworkspace/xcshareddata/
+*.xcodeproj/xcuserdata/
+*.xcworkspace/xcuserdata/
+*.xcarchive/
+
+# node_modules (if you are using Node.js for build scripts)
+/node_modules/
+
+# Web specific (if you are targeting web)
+**/doc/api/ # 일반적으로 pub.dev 문서 생성 결과
+
+# Symbolication / Obfuscation related
+app.*.symbols
+app.*.map.json
+
+# Environment variables and sensitive files
+.env
+.env.*
+#my_secret_key.txt # 예시: 여기에 프로젝트별로 무시할 파일 추가
