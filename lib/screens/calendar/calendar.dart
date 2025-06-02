@@ -23,22 +23,39 @@ class _CalendarViewPageState extends State<CalendarViewPage> {
     _fetchTasks();
   }
 
-  Color determineColor(List asiUsers, List stateList, DateTime finishDate) {
-    int userIndex = asiUsers.indexOf(uid);
-    int state = userIndex != -1 ? stateList[userIndex] : 0;
+  Color determineColor(List assignedUsers, List stateList, DateTime finishDate) {
+    // 날짜 비교를 위해 시간 부분을 제외한 오늘 날짜의 시작 시점
+    DateTime today = DateTime.now();
+    DateTime startOfToday = DateTime(today.year, today.month, today.day);
 
-    if (state == 2 || DateTime.now().compareTo(finishDate) == 1) {
-      return Colors.grey.shade400;
+    // finishDate도 시간 부분을 제외하고 날짜만 비교하기 위해 정규화
+    DateTime finishDateOnly = DateTime(finishDate.year, finishDate.month, finishDate.day);
+
+    int userState = -1; // 기본 상태 (사용자 정보를 찾을 수 없거나 상태가 없을 경우)
+
+    if (uid != null) {
+      int userIndex = assignedUsers.indexOf(uid);
+      if (userIndex != -1 && userIndex < stateList.length) {
+        // 사용자의 상태가 유효하게 존재하면 해당 상태 값 사용
+        userState = stateList[userIndex];
+      }
+    }
+
+    // 1. 사용자의 상태가 '완료'(2)인 경우
+    if (userState == 2) {
+      return Colors.grey.shade400; // 회색
     } else {
-      var today = DateTime.now();
-      var difference = finishDate.difference(today).inDays;
+      // 사용자의 상태가 '완료'가 아닌 경우 (0, 1, 또는 알 수 없음 -1)
 
-      if (difference >= 7) {
-        return Colors.lightGreen;
-      } else if (difference >= 3) {
-        return const Color(0xffFDE767);
+      // 2.a. 마감일(finishDateOnly)이 오늘 이전(startOfToday)인 경우 (즉, 어제까지였던 경우)
+      if (finishDateOnly.isBefore(startOfToday)) {
+        return const Color(0xffFF6868); // 빨간색
       } else {
-        return const Color(0xffFF6868);
+        if( userState == 1) {
+          return const Color(0xffFDE767); // 노란색
+        }else{
+        // 2.b. 마감일이 오늘이거나 오늘 이후인 경우
+        return Colors.lightGreen;} // 밝은 녹색
       }
     }
   }
@@ -180,6 +197,7 @@ class _CalendarViewPageState extends State<CalendarViewPage> {
           child: TableCalendar(
             calendarStyle: CalendarStyle(
               selectedDecoration: BoxDecoration(
+                border: Border.all(color: const Color(0xFFB0A695), width: 2),
                 color: const Color(0xFF776B5D),
                 shape: BoxShape.rectangle,
                 borderRadius: BorderRadius.circular(7),
@@ -197,21 +215,21 @@ class _CalendarViewPageState extends State<CalendarViewPage> {
             lastDay: DateTime(2101),
             selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
             headerStyle: const HeaderStyle(formatButtonVisible: false,titleCentered: true,
-              titleTextStyle: TextStyle(color: Color(0xFF7D5B43),fontSize: 20),
-              leftChevronIcon: Icon(Icons.chevron_left, color: Color(0xFFB0A695)),
-              rightChevronIcon: Icon(Icons.chevron_right, color: Color(0xFFB0A695)),
+              titleTextStyle: TextStyle(color: Colors.black,fontSize: 20),
+              leftChevronIcon: Icon(Icons.chevron_left, color: Color(0xFFB0A6A5)),
+              rightChevronIcon: Icon(Icons.chevron_right, color: Color(0xFFB0A6A5)),
             ),
             daysOfWeekHeight: 20,
             onDaySelected: (selectedDay, focusedDay) async {
               // 비동기 작업 수행
               await _fetchTasksForSelectedDay(selectedDay);
-        
+
               // 비동기 작업이 완료되면 setState() 호출하여 화면 업데이트
               setState(() {
                 _selectedDay = selectedDay;
                 _focusedDay = focusedDay;
               });
-        
+
               _showTaskListBottomSheet(context, _selectedTasks);
             },
             onPageChanged: (focusedDay) {

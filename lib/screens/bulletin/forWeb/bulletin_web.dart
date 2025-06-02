@@ -163,7 +163,7 @@ class _BulletinPageState extends State<BulletinPage> {
                         maxLines: 1,),
                       if (post['related_work'] == '')
                         const SizedBox(height: 10),
-                      Text('설명: ${post['description'] ?? '없음'}',
+                      Text('내용: ${post['description'] ?? '없음'}',
                           overflow: TextOverflow.ellipsis,
                       maxLines: 2,),
                       const SizedBox(height: 10,),

@@ -52,7 +52,7 @@ class _BulletinPageState extends State<BulletinPage> {
       appBar: // AppBar에 검색 기능 추가
           AppBar(
         automaticallyImplyLeading: false,
-        backgroundColor: Colors.brown[100],
+        backgroundColor: Colors.grey[200],
         title: TextField(
           controller: searchController,
           decoration: const InputDecoration(
@@ -104,26 +104,31 @@ class _BulletinPageState extends State<BulletinPage> {
       _initializePostsStream();
     } else {
       setState(() {
-        postsStream = FirebaseFirestore.instance
-            .collection('posts')
-            .where('group_id', isEqualTo: userGroupId)
-            .orderBy('title') // 먼저 제목 기준으로 정렬
-            .orderBy('created_at', descending: true) // 그 다음 생성 날짜 기준으로 내림차순 정렬
-            .where('title_arr', arrayContains: searchQuery)
-            .snapshots();
+        postsStream =
+            FirebaseFirestore.instance
+                .collection('posts')
+                .where('group_id', isEqualTo: userGroupId)
+                .orderBy('title') // 먼저 제목 기준으로 정렬
+                .orderBy(
+                  'created_at',
+                  descending: true,
+                ) // 그 다음 생성 날짜 기준으로 내림차순 정렬
+                .where('title_arr', arrayContains: searchQuery)
+                .snapshots();
       });
     }
   }
 
   void _initializePostsStream() {
     if (userGroupId.isEmpty) return; // userGroupId가 없으면 리턴
-    
+
     setState(() {
-      postsStream = FirebaseFirestore.instance
-          .collection('posts')
-          .where('group_id', isEqualTo: userGroupId)
-          .orderBy('created_at', descending: true)
-          .snapshots();
+      postsStream =
+          FirebaseFirestore.instance
+              .collection('posts')
+              .where('group_id', isEqualTo: userGroupId)
+              .orderBy('created_at', descending: true)
+              .snapshots();
     });
   }
 
@@ -139,7 +144,7 @@ class _BulletinPageState extends State<BulletinPage> {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
-        
+
         if (snapshot.hasError) {
           print('게시물 목록 로딩 중 에러 발생: ${snapshot.error}');
           return Center(child: Text('에러가 발생했습니다: ${snapshot.error}'));
@@ -149,82 +154,94 @@ class _BulletinPageState extends State<BulletinPage> {
           return const Center(child: Text('게시물이 없습니다.'));
         }
 
-        return ListView.separated(
-          separatorBuilder: (context, index) => const Divider(
-            height: 1,
-            thickness: 1.5,
-            color: Color(0xffcccccc),
-          ),
+        return ListView.builder(
           itemCount: snapshot.data!.docs.length,
           itemBuilder: (context, index) {
             List<DocumentSnapshot> sortedDocuments =
                 snapshot.data!.docs.toList()..sort(customSort);
 
             DocumentSnapshot document = sortedDocuments[index];
-            Map<String, dynamic> post =
-                document.data() as Map<String, dynamic>;
+            Map<String, dynamic> post = document.data() as Map<String, dynamic>;
             return SizedBox(
-              height: 110,
+              height: 100,
               child: ListTile(
                 title: Text(
                   post['title'] ?? '제목 없음',
                   overflow: TextOverflow.ellipsis,
                   maxLines: 1,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 17,
+                  ),
                 ),
                 subtitle: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     if (post['related_work'] != '')
-                      Text(
-                        '관련 업무: ${post['related_work'] ?? '없음'}',
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 1,
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(0, 0, 0, 0),
+                        child: Text(
+                          '관련 업무: ${post['related_work'] ?? '없음'}',
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                        ),
                       ),
-                    if (post['related_work'] == '')
-                      const SizedBox(height: 10),
-                    Text(
-                      '설명: ${post['description'] ?? '없음'}',
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 2,
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(0, 0, 0, 0),
+                      child: Text(
+                        '내용: ${post['description'] ?? '없음'}',
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 2,
+                      ),
                     ),
-                    const SizedBox(
-                      height: 10,
-                    ),
+                    if (post['related_work'] == '') const SizedBox(height: 10),
                   ],
                 ),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
+                trailing: Column(
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.max,
                   children: [
-                    FutureBuilder<int>(
-                      future: countComments(document.id),
-                      builder: (context, snapshot) {
-                        if (snapshot.hasData && snapshot.data! > 0) {
-                          return Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(Icons.comment),
-                              const SizedBox(width: 2),
-                              Text('${snapshot.data}'),
-                            ],
-                          );
-                        } else {
-                          return const SizedBox.shrink();
-                        }
-                      },
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        FutureBuilder<int>(
+                          future: countComments(document.id),
+                          builder: (context, snapshot) {
+                            if (snapshot.hasData && snapshot.data! > 0) {
+                              return Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.comment),
+                                  const SizedBox(width: 2),
+                                  Text('${snapshot.data}'),
+                                ],
+                              );
+                            } else {
+                              return const SizedBox.shrink();
+                            }
+                          },
+                        ),
+                        SizedBox.fromSize(size: const Size.square(10)),
+                        if (post['image_url'] != null &&
+                            post['image_url'].isNotEmpty)
+                          const Icon(Icons.image),
+                        SizedBox.fromSize(size: const Size.square(12)),
+                        if (post['file_url'] != null && post['file_url'].isNotEmpty)
+                          const Icon(Icons.file_copy),
+                      ],
                     ),
-                    SizedBox.fromSize(size: const Size.square(10)),
-                    if (post['image_url'] != null && post['image_url'].isNotEmpty)
-                      const Icon(Icons.image),
-                    SizedBox.fromSize(
-                      size: const Size.square(12),
-                    ),
-                    if (post['file_url'] != null && post['file_url'].isNotEmpty)
-                      const Icon(Icons.file_copy),
                   ],
                 ),
-                onTap: () => Navigator.of(context).push(MaterialPageRoute(
-                    builder: (context) =>
-                        PostDetailPage(post: post, documentId: document.id))),
+                onTap:
+                    () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder:
+                            (context) => PostDetailPage(
+                              post: post,
+                              documentId: document.id,
+                            ),
+                      ),
+                    ),
               ),
             );
           },
@@ -256,10 +273,11 @@ class _BulletinPageState extends State<BulletinPage> {
 
   Future<int> countComments(String postId) async {
     try {
-      final QuerySnapshot commentSnapshot = await FirebaseFirestore.instance
-          .collection('comments')
-          .where('post_id', isEqualTo: postId)
-          .get();
+      final QuerySnapshot commentSnapshot =
+          await FirebaseFirestore.instance
+              .collection('comments')
+              .where('post_id', isEqualTo: postId)
+              .get();
 
       // 댓글의 개수 반환
       return commentSnapshot.docs.length;
@@ -312,24 +330,25 @@ class _BulletinPageState extends State<BulletinPage> {
       Uri uri = Uri.parse(url);
       String fileName = uri.pathSegments.last;
       await dio.download(url, "$directoryPath/$fileName");
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('$fileName 다운로드 완료')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('$fileName 다운로드 완료')));
     } catch (e) {
       print('파일 다운로드 중 에러 발생: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('파일 다운로드 중 오류가 발생했습니다')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('파일 다운로드 중 오류가 발생했습니다')));
     }
   }
 
   Future<List<Map<String, dynamic>>> _fetchGroupUsers() async {
     try {
       QuerySnapshot groupSnapshot;
-      groupSnapshot = await firestore
-          .collection('groups')
-          .where('group_users', arrayContains: currentUser?.uid)
-          .get();
+      groupSnapshot =
+          await firestore
+              .collection('groups')
+              .where('group_users', arrayContains: currentUser?.uid)
+              .get();
 
       List<Map<String, dynamic>> groupUsers = [];
       for (var groupDoc in groupSnapshot.docs) {
@@ -354,8 +373,9 @@ class _BulletinPageState extends State<BulletinPage> {
   }
 
   void _createNewPost() {
-    Navigator.of(context)
-        .push(MaterialPageRoute(builder: (context) => const CreatePostPage()));
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (context) => const CreatePostPage()));
   }
 }
 
@@ -374,8 +394,8 @@ class Post {
     List<String>? image_url,
     List<String>? file_url,
     required this.created_at,
-  })  : image_url = image_url ?? [],
-        file_url = file_url ?? [];
+  }) : image_url = image_url ?? [],
+       file_url = file_url ?? [];
 
   factory Post.fromMap(Map<String, dynamic> map, String documentId) {
     return Post(

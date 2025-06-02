@@ -44,7 +44,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
   bool ing = false;
   bool isLoading = false;
   FirebaseStorage storage =
-      FirebaseStorage.instanceFor(bucket: 'gs://beolgyooffice.appspot.com');
+      FirebaseStorage.instanceFor(bucket: 'gs://four-thirty.firebasestorage.app');
 
   @override
   void initState() {
@@ -127,7 +127,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
                 const SizedBox(height: 10),
                 TextFormField(
                   controller: _descriptionController,
-                  decoration: const InputDecoration(labelText: '설명',border: InputBorder.none),
+                  decoration: const InputDecoration(labelText: '내용',border: InputBorder.none),
                   maxLines: null,
                   style: const TextStyle(fontSize: 17),
                 ),
@@ -324,7 +324,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
               children: [
                 if (_post['related_work'] != '')
                   Text('관련 업무: ${_post['related_work'] ?? '없음'}'),
-                const SizedBox(height: 10),
+                const SizedBox(height: 5),
                 SelectableLinkify(
                   contextMenuBuilder: (context, editableTextState) {
                     final List<ContextMenuButtonItem> buttonItems =
@@ -335,7 +335,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
                     );
                   },
                   onOpen: (link) async => await _launchURL(Uri.parse(link.url)),
-                  text: '설명: ${_post['description'] ?? '없음'}',
+                  text: '${_post['description'] ?? '없음'}',
                   style: const TextStyle(
                       color: Colors.black, // 일반 텍스트 색상
                       fontSize: 17),
@@ -655,7 +655,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
           setState(() {
             isLoading = true;
           });
-          String file_url = await _uploadFileToWeb(file, 'TeamToDo');
+          String file_url = await _uploadFileToWeb(file, 'FourThirty');
           _submitAttachment(file_url);
           setState(() {
             isLoading = false;
@@ -673,7 +673,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
         setState(() {
           isLoading = true;
         });
-        String file_url = await _uploadFileToStorage(file, 'TeamToDo');
+        String file_url = await _uploadFileToStorage(file, 'FourThirty');
         _submitAttachment(file_url);
         setState(() {
           isLoading = false;
@@ -716,7 +716,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
   //
   //     String uuid = Uuid().v4().substring(0, 4); // 표준 UUID 생성, 처음 4자리 사용
   //     String fileName = '$uuid${path.basename(file.name)}';
-  //     Reference ref = FirebaseStorage.instance.ref().child('TeamToDo/$fileName');
+  //     Reference ref = FirebaseStorage.instance.ref().child('FourThirty/$fileName');
   //
   //     final reader = html.FileReader();
   //     reader.readAsDataUrl(file); // 파일을 Data URL로 읽습니다.
@@ -739,7 +739,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
   //     } else {
   //       String uuid = Uuid().v4().substring(0, 4); // 표준 UUID 생성, 처음 4자리 사용
   //       String fileName = '$uuid${path.basename(file.path)}';
-  //       Reference ref = FirebaseStorage.instance.ref().child('TeamToDo/$fileName');
+  //       Reference ref = FirebaseStorage.instance.ref().child('FourThirty/$fileName');
   //       UploadTask uploadTask = ref.putFile(file);
   //       TaskSnapshot snapshot = await uploadTask;
   //       String file_url = await snapshot.ref.getDownloadURL();
@@ -926,7 +926,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
 
       // 웹 환경에서의 업로드 로직
       for (var image in _newSelectedImagesWeb) {
-        String image_url = await _uploadFileToWeb(image, 'TeamToDo');
+        String image_url = await _uploadFileToWeb(image, 'FourThirty');
         if (image_url != '') {
           newImageUrls.add(image_url);
         }
@@ -935,7 +935,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
       // 새로 선택된 파일을 Firebase Storage에 업로드하고 URL을 저장
       // 웹 환경에서의 업로드 로직
       for (var file in _newSelectedFilesWeb) {
-        String file_url = await _uploadFileToWeb(file, 'TeamToDo');
+        String file_url = await _uploadFileToWeb(file, 'FourThirty');
         if (file_url != '') {
           newFileUrls.add(file_url);
         }

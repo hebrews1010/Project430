@@ -25,9 +25,11 @@ class _TaskManageDialogState extends State<TaskManageDialog> {
   String relatedPostId = '';
   String? taskId;
   late QuerySnapshot groupSnapshot;
+  String? groupId;
   late Map<String, dynamic> task = widget.task;
   bool ing = false;
   bool ing2 =false;
+  bool ing3 = false;
 
   final TextEditingController _taskNameController = TextEditingController();
   final TextEditingController _taskScriptController = TextEditingController();
@@ -71,6 +73,11 @@ class _TaskManageDialogState extends State<TaskManageDialog> {
           .collection('groups')
           .where('group_users', arrayContains: userId)
           .get();
+      groupId = groupSnapshot.docs.isNotEmpty
+          ? groupSnapshot.docs.first.id
+          : null;
+
+      //그룹은 하나밖에 없으므로 groupSnapshot.docs.first.id해도 될듯
     }
   }
 
@@ -128,142 +135,210 @@ class _TaskManageDialogState extends State<TaskManageDialog> {
   }
 
   void _showSelectUsersDialog() {
-    List<DocumentSnapshot> groups = groupSnapshot.docs;
+    // groupSnapshot이 null이거나 비어있는 경우에 대한 방어 코드 추가
+    if (groupSnapshot == null || groupSnapshot.docs.isEmpty) {
+      print("_showSelectUsersDialog: groupSnapshot is null or empty.");
+      if (mounted) { // context 사용 전 mounted 확인
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('그룹 정보를 먼저 불러와주세요.')),
+        );
+      }
+      return;
+    }
+    // 현재 사용자가 속한 그룹 중 첫 번째 그룹을 사용한다고 가정
+    DocumentSnapshot group = groupSnapshot.docs.first;
+    String groupId = group.id;
+    List<dynamic> groupUserUids = (group.data() as Map<String, dynamic>?)?['group_users'] as List<dynamic>? ?? [];
 
-    // 다이얼로그 표시
-    getGroupUsers(groups).then(
-      (groupUserNames) {
+    // groupUserUids를 String 리스트로 변환
+    List<String> groupUserUidsString = groupUserUids.map((e) => e.toString()).toList();
+
+    // 기존 checkedUsers를 기반으로 이 다이얼로그의 초기 선택 상태 설정
+    // 이 로직은 다이얼로그가 표시될 때마다 실행되므로,
+    // 사용자가 다이얼로그 내에서 선택한 사항을 유지하려면
+    // checkedUsers를 이 함수의 로컬 변수로 복사해서 사용하고,
+    // 확인 시에만 page state의 checkedUsers를 업데이트하는 것이 좋습니다.
+    // 여기서는 기존 로직을 최대한 따르되, 초기화 문제를 인지합니다.
+    Set<String> dialogCheckedUsers = Set<String>.from(checkedUsers); // 다이얼로그 로컬 선택 상태
+
+    // getGroupUsers 함수는 이제 List<String>을 반환한다고 가정
+    // (원래 코드에서는 Map<String, List<String>>을 반환하는 getGroupUsers(groups) 였음)
+    // 단일 그룹에 대한 사용자 이름 목록을 가져오는 함수가 필요합니다.
+    // 여기서는 _getUsersNames(List<dynamic> userUids)를 직접 사용한다고 가정합니다.
+    _getUsersNames(groupUserUidsString).then( // groupUserUidsString 사용
+          (List<String> userNames) { // 이제 userNames는 특정 그룹의 이름 리스트
+        if (!mounted) return;
+
+        // isCheckedList 초기화: widget.task['assigned_users']를 기준으로
+        // 이 로직은 다이얼로그가 열릴 때마다 수행되어 이전 선택을 덮어쓸 수 있으므로 주의
+        List<bool> isCheckedList = List.generate(userNames.length, (idx) {
+          if (idx < groupUserUidsString.length) {
+            return dialogCheckedUsers.contains(groupUserUidsString[idx]);
+          }
+          return false;
+        });
+        // 기존 코드의 초기화 로직:
+        // 만약 이전에 선택된 것이 없고, task에 할당된 사용자가 있다면 초기 체크
+        // 이 부분은 사용자의 의도에 따라 조정 필요 (항상 task 기준으로 할지, 이전 선택 유지할지)
+        bool wasAnythingCheckedInitiallyByTask = false;
+        List<dynamic> assignedUsersInTask = widget.task['assigned_users'] as List<dynamic>? ?? [];
+        Set<String> taskAssignedSet = Set<String>.from(assignedUsersInTask.cast<String>());
+
+        for(int i=0; i< userNames.length; i++){
+          if (i < groupUserUidsString.length && taskAssignedSet.contains(groupUserUidsString[i])) {
+            if(!isCheckedList[i]) { // 이미 dialogCheckedUsers에 의해 true가 아니라면
+              isCheckedList[i] = true;
+              dialogCheckedUsers.add(groupUserUidsString[i]); // dialogCheckedUsers에도 반영
+            }
+            wasAnythingCheckedInitiallyByTask = true;
+          }
+        }
+        // 만약 Task에 할당된 사용자가 없어서 isCheckedList가 모두 false라면,
+        // 그리고 dialogCheckedUsers (이전 선택) 에 의해 체크된 것도 없다면,
+        // 이전에 사용자가 다이얼로그에서 선택했던 상태 (dialogCheckedUsers)를 isCheckedList에 반영해야 합니다.
+        // 현재는 위 로직에서 task의 assigned_users를 dialogCheckedUsers에 추가하고, 이를 isCheckedList에 반영하고 있습니다.
+
+
         showDialog(
             context: context,
-            builder: (BuildContext context) {
+            builder: (BuildContext dialogContext) { // dialogContext 사용
               return StatefulBuilder(
-                  builder: (BuildContext context, StateSetter setState) {
-                return Scaffold(
-                    body: ListView.builder(
-                      itemCount: groups.length,
-                      itemBuilder: (context, index) {
-                        DocumentSnapshot group = groups[index];
-                        String groupId = group.id;
-                        List<dynamic> groupUsers =
-                            group['group_users'] as List<dynamic>;
-
-                        List<String> userNames = groupUserNames[groupId] ?? [];
-
-                        List<bool> isCheckedList =
-                            groupCheckedStatus.putIfAbsent(
-                                groupId,
-                                () => List.generate(
-                                    userNames.length, (index) => false));
-                        if (!isCheckedList.contains(true)) {
-                          for (String assiUsers
-                              in widget.task['assigned_users']) {
-                            int index = groupUsers.indexOf(assiUsers);
-                            isCheckedList[index] = true;
-                            checkedUsers.add(assiUsers);
-                          }
-                        }
-                        return ListTile(
-                          title: Text('${widget.task['task_name']}' '\n\n' +
-                              group['group_name']),
-                          subtitle: Column(
-                            children: userNames.asMap().entries.map((entry) {
-                              int idx = entry.key;
-                              String userName = entry.value;
-                              String userUid = group['group_users'][idx];
-
-                              return CheckboxListTile(
-                                title: Text(userName),
-                                value: isCheckedList[idx],
-                                onChanged: (bool? value) {
-                                  setState(() {
-                                    isCheckedList[idx] = !isCheckedList[idx];
-                                    value = isCheckedList[idx];
-                                    groupCheckedStatus[groupId] = isCheckedList;
-
-                                    if (value == true) {
-                                      checkedUsers.add(userUid);
-                                    } else {
-                                      checkedUsers.remove(userUid);
-                                    }
-                                    // print(isCheckedList[idx]);
-                                    // print(groupCheckedStatus);
-                                    // print(value);
-                                    // print(checkedUsers);
-                                  });
-                                },
-                              );
-                            }).toList(),
+                  builder: (BuildContext context, StateSetter setDialogState) { // setDialogState 사용
+                    return Scaffold(
+                        appBar: AppBar(
+                          title: Text("${group['group_name'] ?? '그룹'} 구성원 선택"),
+                          leading: IconButton(
+                            icon: const Icon(Icons.close),
+                            onPressed: () => Navigator.of(dialogContext).pop(),
                           ),
-                        );
-                      },
-                    ),
-                    floatingActionButton: FloatingActionButton(
-                      child: const Icon(Icons.check_circle_outline),
-                      onPressed: () {
-                        if (ing2 == true) {
-                          null;
-                        } if (ing2 == false) {
-                          ing2 = true;
-                        if (checkedUsers.isNotEmpty) {
-                          var currentUser = FirebaseAuth.instance.currentUser;
-                          var uid = currentUser?.uid;
-                          List assign = widget.task['assigned_users'];
-                          List states = widget.task['state'];
-                          List alerts = widget.task['alert'];
-                          Map<dynamic, dynamic> userStates = {};
-                          for (int i = 0; i < assign.length; i++) {
-                            var map = {assign[i]: states[i]};
-                            userStates.addAll(map);
-                          }
-                          List newStates = [];
-                          for (String user in checkedUsers) {
-                            if (!assign.contains(user)) {
-                              newStates.add(0);
-                            } else {
-                              newStates.add(userStates[user]);
-                            }
-                          }
-                          //alerts
-                          Map<dynamic, dynamic> userAlerts = {};
-                          for (int i = 0; i < assign.length; i++) {
-                            var map = {assign[i]: alerts[i]};
-                            userAlerts.addAll(map);
-                          }
-                          List newAlerts = [];
-                          for (String user in checkedUsers) {
-                            if (!assign.contains(user)) {
-                              newAlerts.add(false);
-                            } else {
-                              newAlerts.add(userAlerts[user]);
-                            }
-                          }
+                        ),
+                        body: userNames.isEmpty
+                            ? const Center(child: Text("선택할 사용자가 없습니다."))
+                            : SingleChildScrollView( // ListView.builder 대신 SingleChildScrollView + Column
+                          child: Column(
+                            children: [
+                              ListTile( // 태스크 이름은 AppBar나 다른 곳으로 옮기는 것이 UI상 더 자연스러울 수 있습니다.
+                                title: Text('태스크: ${widget.task['task_name']}', style: TextStyle(fontWeight: FontWeight.bold)),
+                                // subtitle: Text('그룹: ${group['group_name']}'), // AppBar로 옮김
+                              ),
+                              // Column으로 CheckboxListTile들을 직접 나열
+                              ...userNames.asMap().entries.map((entry) { // ...
+                                int idx = entry.key;
+                                String userName = entry.value;
 
-                          if (uid != null) {
-                            FirebaseFirestore.instance
-                                .collection('tasks')
-                                .doc(widget.taskId)
-                                .update({
-                              'assigned_users': checkedUsers.toList(),
-                              'state': newStates,
-                              'alert': newAlerts
-                            }).then((_) {
-                              setAssignedUsers(
-                                  checkedUsers.toList(), newStates, newAlerts);
-                              Navigator.of(context).pop(); // 다이얼로그 닫기
-                            });
-                          }
-                        }
-                    ing2 = false;
-                    }
-                      },
-                    ));
-              });
-            }).then((value) => setState(() {
-              ing = false;
-            }));
+                                if (idx >= groupUserUidsString.length || idx >= isCheckedList.length) {
+                                  return const SizedBox.shrink(); // 데이터 불일치 방지
+                                }
+                                String userUid = groupUserUidsString[idx];
+
+                                return CheckboxListTile(
+                                  title: Text(userName),
+                                  value: isCheckedList[idx],
+                                  onChanged: (bool? value) {
+                                    setDialogState(() { // 다이얼로그 내부 UI만 업데이트
+                                      isCheckedList[idx] = value ?? false;
+                                      // groupCheckedStatus[groupId] = isCheckedList; // 단일 그룹이므로 이 Map 구조는 불필요해짐
+
+                                      if (value == true) {
+                                        dialogCheckedUsers.add(userUid);
+                                      } else {
+                                        dialogCheckedUsers.remove(userUid);
+                                      }
+                                    });
+                                  },
+                                );
+                              }).toList(),
+                            ],
+                          ),
+                        ),
+                        floatingActionButton: FloatingActionButton(
+                          child: const Icon(Icons.check_circle_outline),
+                          onPressed: () async { // async 추가
+                            if (ing2 == true) return; // 중복 실행 방지
+
+                            setState(() { ing2 = true; }); // _TaskManagePageState의 setState 사용
+
+                            if (dialogCheckedUsers.isNotEmpty) { // 다이얼로그의 로컬 선택 사용
+                              var currentAuthUser = FirebaseAuth.instance.currentUser;
+                              // var uid = currentAuthUser?.uid; // 현재 코드에서는 uid 변수를 직접 사용하지 않음
+
+                              List<dynamic> currentAssignedDb = List.from(widget.task['assigned_users'] ?? []);
+                              List<dynamic> currentStatesDb = List.from(widget.task['state'] ?? []);
+                              List<dynamic> currentAlertsDb = List.from(widget.task['alert'] ?? []);
+
+                              Map<String, int> oldUserStates = {};
+                              Map<String, bool> oldUserAlerts = {};
+
+                              for (int i = 0; i < currentAssignedDb.length; i++) {
+                                if (i < currentStatesDb.length) {
+                                  oldUserStates[currentAssignedDb[i] as String] = currentStatesDb[i] as int;
+                                }
+                                if (i < currentAlertsDb.length) {
+                                  oldUserAlerts[currentAssignedDb[i] as String] = currentAlertsDb[i] as bool;
+                                }
+                              }
+
+                              List<String> newAssignedUsersList = dialogCheckedUsers.toList();
+                              List<int> newStates = [];
+                              List<bool> newAlerts = [];
+
+                              for (String userIdInNewList in newAssignedUsersList) {
+                                newStates.add(oldUserStates[userIdInNewList] ?? 0);
+                                newAlerts.add(oldUserAlerts[userIdInNewList] ?? false);
+                              }
+
+                              try {
+                                await FirebaseFirestore.instance // await 추가
+                                    .collection('tasks')
+                                    .doc(widget.taskId)
+                                    .update({
+                                  'assigned_users': newAssignedUsersList,
+                                  'state': newStates,
+                                  'alert': newAlerts
+                                });
+
+                                // 부모 위젯(TaskManageDialog)의 상태 업데이트
+                                setAssignedUsers(newAssignedUsersList, newStates, newAlerts);
+
+                                if (mounted) Navigator.of(dialogContext).pop(); // 다이얼로그 닫기 (dialogContext 사용)
+
+                              } catch (e) {
+                                print("Error updating task: $e");
+                                if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('업무 업데이트 중 오류: ${e.toString()}')));
+                              } finally {
+                                if (mounted) setState(() { ing2 = false; });
+                              }
+                            } else {
+                              // 선택된 사용자가 없는 경우 처리
+                              if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('선택된 수행자가 없습니다.')));
+                              if (mounted) setState(() { ing2 = false; });
+                            }
+                          },
+                        ));
+                  });
+            }).then((_) { // 반환값이 없으므로 value 파라미터 제거
+          // 다이얼로그가 닫힌 후 실행될 코드 (예: _TaskManagePageState의 ing 상태 업데이트)
+          // 이 setState는 _TaskManagePageState의 것
+          if (mounted) {
+            setState(() {
+              // ing = false; // ing는 _showAddTaskDialog에서 사용하던 것, 여기서는 ing2를 주로 사용함
+              // checkedUsers는 여기서 업데이트할 필요 없음. 이미 FAB onPressed에서 this.checkedUsers가 업데이트됨.
+            });
+          }
+        });
       },
-    );
+    ).catchError((error) { // getGroupUsers (또는 _getUsersNames) 에러 처리
+      print("Error getting user names: $error");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('사용자 이름 로딩 중 오류가 발생했습니다.')));
+      }
+      setState(() => ing2 = false); // 로딩 상태 해제
+    });
   }
+
+// _getUsersNames 함수는 _TaskManagePageState 내에 이미 정의되어 있다고 가정합니다.
+// Future<List<String>> _getUsersNames(List<dynamic> userUids) async { ... }
 
   Future<void> _fetchRelatedPost() async {
     var postSnapshot = await FirebaseFirestore.instance
@@ -461,11 +536,11 @@ class _TaskManageDialogState extends State<TaskManageDialog> {
               ),
               ElevatedButton(
                 onPressed: () async {
-                  if (ing == true) {
+                  if (ing3 == true) {
                     print('no');
                     null;
                   } else {
-                    ing = true;
+                    ing3 = true;
                     FirebaseFirestore.instance
                         .collection('tasks')
                         .doc(widget.taskId)
@@ -473,6 +548,7 @@ class _TaskManageDialogState extends State<TaskManageDialog> {
                       'task_name': _taskNameController.text,
                       'task_script': _taskScriptController.text,
                     });
+                    ing3 = false;
                     _showSelectUsersDialog();
                     // Navigator.of(context).pop();
                   }
@@ -488,23 +564,57 @@ class _TaskManageDialogState extends State<TaskManageDialog> {
             onPressed: () => _deleteTask(context),
           ),
           ElevatedButton(
-            child: const Text('확인'),
-            onPressed: () {
-              if (ing == true){null;}else{
-                ing=true;
-                nameLine = 1;
-                FirebaseFirestore.instance
+            child: ing // _isLoading은 State 클래스의 멤버 변수여야 합니다 (예: bool _isLoading = false;)
+                ? const SizedBox( // 로딩 중일 때 인디케이터 표시
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2.0,
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.white), // 버튼 색상에 맞게 조절
+              ),
+            )
+                : const Text('확인'),
+            onPressed: ing // 로딩 중이면 버튼 비활성화
+                ? null
+                : () async { // async 키워드 추가
+              if (!mounted) return; // 위젯이 마운트되어 있는지 확인
+
+              setState(() {
+                ing = true; // 로딩 시작 상태 업데이트
+                // nameLine = 1; // nameLine 변경이 UI에 영향을 준다면 여기서 setState와 함께 처리
+              });
+
+              try {
+                await FirebaseFirestore.instance
                     .collection('tasks')
-                    .doc(widget.taskId)
+                    .doc(widget.taskId) // widget.taskId가 유효하다고 가정
                     .update({
                   'task_name': _taskNameController.text,
                   'task_script': _taskScriptController.text,
                   // 'finished_at' 업데이트는 선택 사항
-                }).then((_) {
-                  ing=false;
+                });
+
+                print('Task ${widget.taskId} updated successfully.');
+
+                if (mounted) { // 작업 완료 후 다시 mounted 확인
                   Navigator.of(context).pop(); // 편집 대화상자 닫기
-                  // 필요한 경우 상태 업데이트
-                });}
+                  // 필요한 경우 부모 위젯에 상태 변경 알림 또는 추가적인 상태 업데이트
+                  // 예: widget.onTaskUpdated?.call();
+                }
+              } catch (error) {
+                print('Error updating task: $error');
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('업무 업데이트 중 오류가 발생했습니다: ${error.toString()}')),
+                  );
+                }
+              } finally {
+                if (mounted) {
+                  setState(() {
+                    ing = false; // 로딩 종료 상태 업데이트
+                  });
+                }
+              }
             },
           )
         ],
@@ -513,14 +623,14 @@ class _TaskManageDialogState extends State<TaskManageDialog> {
   }
 }
 
-Future<Map<String, List<String>>> getGroupUsers(
-    List<DocumentSnapshot> groups) async {
-  Map<String, List<String>> groupUserNames = {};
-  for (var group in groups) {
+Future<List<String>> getGroupUsers(
+   DocumentSnapshot group) async {
+ List<String> groupUserNames = [];
+
     List<dynamic> groupUsers = group['group_users'] as List<dynamic>;
     List<String> userNames = await _getUsersNames(groupUsers);
-    groupUserNames[group.id] = userNames;
-  }
+    groupUserNames = userNames;
+
   return groupUserNames;
 }
 

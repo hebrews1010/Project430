@@ -1,92 +1,26 @@
-import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:google_sign_in/google_sign_in.dart';
-import 'package:fourthirty/groupsettingpage.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
+
+//import 'package:firebase_auth/firebase_auth.dart';
+//import 'package:google_sign_in/google_sign_in.dart';
+import 'package:fourthirty/screens/auth/groupsettingpage.dart';
+
+//import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fourthirty/mainuipage.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:fourthirty/providers/users_provider.dart'; // UsersProvider 클래스가 이 파일에 정의되어 있다고 가정합니다.
 import 'package:fourthirty/screens/auth/register_page.dart';
+
 //import 'dart:html' as html;
+import 'package:provider/provider.dart';
 
 class LoginPage extends StatelessWidget {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final GoogleSignIn _googleSignIn = GoogleSignIn(scopes: ['email', 'profile']);
-
   LoginPage({super.key});
-
-  Future<User?> _handleSignIn(BuildContext context) async {
-    try {
-      if (kIsWeb) {
-        // 웹에서는 Firebase Auth를 직접 사용
-        final GoogleAuthProvider googleProvider = GoogleAuthProvider();
-        googleProvider.addScope('email');
-        googleProvider.addScope('profile');
-
-        final UserCredential userCredential = 
-            await FirebaseAuth.instance.signInWithPopup(googleProvider);
-        return userCredential.user;
-      } else {
-        // 모바일에서는 기존 방식 사용
-        final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-        if (googleUser == null) return null;
-
-        final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
-        final credential = GoogleAuthProvider.credential(
-          accessToken: googleAuth.accessToken,
-          idToken: googleAuth.idToken,
-        );
-
-        final UserCredential userCredential = await _auth.signInWithCredential(credential);
-        return userCredential.user;
-      }
-    } catch (error) {
-      print('로그인 에러: $error');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('로그인에 실패했습니다. 다시 시도해주세요.')),
-      );
-      return null;
-    }
-  }
-
-  Future<void> _processSignIn(User? user, BuildContext context) async {
-    if (user != null) {
-      final userDoc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .get();
-
-      if (userDoc.exists) {
-        if (userDoc.data()!.containsKey('user_group_id') && 
-            userDoc.get('user_group_id') != '') {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => const MainUiPage()),
-          );
-        } else {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => const GroupSettingPage()),
-          );
-        }
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('회원가입이 필요합니다.')),
-        );
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const RegisterPage()),
-        );
-      }
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('로그인'),
-        centerTitle: true,
-      ),
+      appBar: AppBar(title: const Text('로그인'), centerTitle: true),
       body: Center(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24.0),
@@ -94,12 +28,18 @@ class LoginPage extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-
               //const SizedBox(height: 32),
               ElevatedButton(
                 onPressed: () async {
-                  final user = await _handleSignIn(context);
-                  await _processSignIn(user, context);
+                  // 오류 수정: 변수명을 소문자로 시작하도록 변경 (UsersProvider -> usersProvider)
+                  final usersProvider = Provider.of<UsersProvider>(
+                    context,
+                    listen: false,
+                  );
+                  // 변경된 변수명 사용
+                  final user = await usersProvider.handleSignIn(context);
+                  // 변경된 변수명 사용
+                  await usersProvider.processSignIn(user, context);
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Theme.of(context).primaryColor,
@@ -128,10 +68,31 @@ class LoginPage extends StatelessWidget {
                 const SizedBox(height: 16),
                 ElevatedButton(
                   onPressed: () async {
-                    Navigator.push(
+                    final usersProvider = Provider.of<UsersProvider>(
                       context,
-                      MaterialPageRoute(builder: (context) => const RegisterPage()),
+                      listen: false,
                     );
+                    final User? firebaseUser = await usersProvider.handleSignIn(
+                      context,
+                    );
+
+                    if (firebaseUser != null && context.mounted) {
+                      // context.mounted 확인 추가
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder:
+                              (context) => RegisterPage(user: firebaseUser),
+                        ),
+                      );
+                    } else if (context.mounted) {
+                      // 로그인 실패 또는 사용자 취소 시 메시지 표시 (handleSignIn 내부에서도 처리될 수 있음)
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Google 인증에 실패했거나 취소되었습니다.'),
+                        ),
+                      );
+                    }
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Theme.of(context).primaryColor,

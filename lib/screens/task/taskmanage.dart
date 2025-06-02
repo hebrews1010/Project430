@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'taskmanagedialog.dart';
 import 'package:intl/intl.dart';
+import 'blended_bar.dart';
 
 class TaskManagePage extends StatefulWidget {
   const TaskManagePage({super.key});
@@ -90,24 +91,24 @@ class _TaskManagePageState extends State<TaskManagePage> {
                 color: Color(0xffcccccc),
               ),
               itemCount: tasks.length,
+              // TaskManagePage 클래스 내 build 메소드의 itemBuilder 부분입니다.
+// ... 다른 코드는 동일 ...
+
               itemBuilder: (context, index) {
                 // QueryDocumentSnapshot을 Map<String, dynamic>으로 변환
                 var task = tasks[index].data() as Map<String, dynamic>;
                 var task_id = tasks[index].id;
                 // 여기서 ListTile 구성 로직을 구현
-                List assigned_users = task['assigned_users'];
-                List states = task['state'];
-                // double unitWidth =
-                //     (MediaQuery.of(context).size.width) / taskState.length * 0.88;
+                // List assigned_users = task['assigned_users']; // BlendedBar 와 직접 관련 없음
+                List states = task['state']; // BlendedBar 에 사용됨
+
                 int redNum = states.where((element) => element == 0).length;
-                int yellowNum =
-                    states.where((element) => element == 1).length;
-                int greenNum =
-                    states.where((element) => element == 2).length;
+                int yellowNum = states.where((element) => element == 1).length;
+                int greenNum = states.where((element) => element == 2).length;
+
                 DateTime finished_at = (task['finished_at'] as Timestamp).toDate();
                 String formattedFinished = finished_at.compareTo(DateTime(
-                            DateTime.now().year + 5, 12, 31, 23, 59)) ==
-                        1
+                    DateTime.now().year + 5, 12, 31, 23, 59)) >= 0 // 로직 수정 (>= 0)
                     ? ''
                     : '~${DateFormat.MMMd().format(finished_at)}';
 
@@ -117,70 +118,45 @@ class _TaskManagePageState extends State<TaskManagePage> {
                     title: Text(
                       task['task_name'],
                       style: TextStyle(
-                          color: greenNum == states.length
+                          color: greenNum == states.length && states.isNotEmpty // 조건 추가
                               ? Colors.grey
                               : Colors.black),
                       maxLines: 1, // 최대 표시 줄 수를 1로 설정
                       overflow:
-                          TextOverflow.ellipsis, // 텍스트가 넘칠 경우 말줄임표(...)로 처리
+                      TextOverflow.ellipsis, // 텍스트가 넘칠 경우 말줄임표(...)로 처리
                     ),
-
                     subtitle: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        if (formattedFinished != '')
+                        if (formattedFinished.isNotEmpty) // .isNotEmpty 로 변경
                           Text(
                             formattedFinished,
                             style: TextStyle(
-                                color: greenNum == states.length
+                                color: greenNum == states.length && states.isNotEmpty // 조건 추가
                                     ? Colors.grey
                                     : Colors.black),
                           ),
-                        if (formattedFinished == '')
-                          SizedBox.fromSize(
-                            size: const Size(0, 12),
-                          ),
-                        SizedBox.fromSize(
-                          size: const Size(0, 3),
-                        ),
-                        Row(
-                          mainAxisSize: MainAxisSize.min, // Row의 크기를 내용물에 맞춤
-                          children: <Widget>[
-                            Container(
-                              height: 12.0,
-                              // 높이 조정
-                              width: (MediaQuery.of(context).size.width) /
-                                  states.length *
-                                  0.88 *
-                                  redNum,
-                              // 첫 번째 막대의 너비
-                              color: const Color(0xffFF6868), // 색상 조정
-                            ),
-                            Container(
-                              height: 12.0,
-                              width: (MediaQuery.of(context).size.width) /
-                                  states.length *
-                                  0.88 *
-                                  yellowNum,
-                              // 두 번째 막대의 너비
-                              color: const Color(0xffFDE767),
-                            ),
-                            Container(
-                              height: 12.0,
-                              width: (MediaQuery.of(context).size.width) /
-                                  states.length *
-                                  0.88 *
-                                  greenNum,
-                              // 세 번째 막대의 너비
-                              color: greenNum == states.length
-                                  ? Colors.grey
-                                  : Colors.lightGreen,
-                            ),
-                          ],
-                        ),
-                        SizedBox.fromSize(
-                          size: const Size(0, 2),
-                        ),
+                        if (formattedFinished.isEmpty) // .isEmpty 로 변경
+                          const SizedBox(height: 16.0), // Text 위젯 높이와 유사하게 조정 (약 16정도) Text 위젯의 기본 높이는 약 14-16px입니다.
+                        const SizedBox(height: 3), // 기존 간격 유지
+
+                        // ====================================================================
+                        // 여기가 수정된 부분입니다: 기존 Row를 BlendedBar 위젯으로 교체
+                        // ====================================================================
+                        if (states.isNotEmpty) // 상태 리스트가 비어있지 않을 때만 바를 표시
+                          BlendedBar(
+                            greenNum: greenNum,
+                            yellowNum: yellowNum,
+                            redNum: redNum,
+                            totalStates: states.length, // states.length를 totalStates로 전달
+                          )
+                        else
+                          const SizedBox(height: 12.0), // 바가 없을 경우 높이 12.0 공간 유지
+                        // ====================================================================
+                        // 수정 끝
+                        // ====================================================================
+
+                        const SizedBox(height: 2), // 기존 간격 유지
                       ],
                     ),
                     onTap: () {
@@ -191,11 +167,11 @@ class _TaskManagePageState extends State<TaskManagePage> {
                         },
                       );
                     },
-
-                    // 추가적인 UI 구성 요소 (예: 색점 표시 등)를 여기에 구현
                   ),
                 );
               },
+
+// ... ListView.separated 및 나머지 코드는 동일 ...
             );
           });
         },
@@ -518,6 +494,7 @@ class _TaskManagePageState extends State<TaskManagePage> {
       // });
     }
   }
+
 
 // _getUsersNames 함수와 나머지 필요한 코드...
 

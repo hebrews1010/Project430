@@ -18,7 +18,8 @@ class _TasksPageState extends State<TasksPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: StreamBuilder<QuerySnapshot>(
+      body:
+      StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('tasks')
             .where('assigned_users', arrayContains: currentUser?.uid)
@@ -70,8 +71,8 @@ class _TasksPageState extends State<TasksPage> {
 
           return ListView.separated(
             separatorBuilder: (context, index) => const Divider(
-              height: 1,
-              thickness: 1.5,
+              height: 0.01,
+              thickness: 0.05,
               color: Color(0xffcccccc),
             ),
             itemCount: tasks.length,
@@ -116,91 +117,96 @@ class _TasksPageState extends State<TasksPage> {
                   confirmDismiss: (direction) {
                     return showDeleteConfirmationDialog(context, taskId, task);
                   },
-                  child: ListTile(
-                    title: Text(taskName, style: textStyle),
+                  child: Container(decoration: BoxDecoration(border: Border.symmetric(
+                      horizontal: BorderSide(
+                          color: Color(0xffcccccc), width: 1.0
+              ))),
+                    child: ListTile(
+                      title: Text(taskName, style: textStyle),
 
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (formattedFinished != '')
-                          Text(formattedFinished,
-                              style: TextStyle(
-                                  color: selectedState == 2
-                                      ? Colors.grey
-                                      : Colors.black,
-                                  fontSize: 10)),
-                        if (task['task_script'] != '')
-                          Text(task['task_script'], style: textStyle),
-                        if (formattedFinished == '' &&
-                            task['task_script'] == '')
-                          const SizedBox(
-                            height: 9,
-                          )
-                      ],
-                    ),
-                    tileColor: isAlert ? Colors.redAccent : Colors.white,
-                    // 색상 변경
-                    onLongPress: () {
-                      if (task['managed_by'] == '') {
-                        showEditTaskDialog(task);
-                        //개인업무 수정 다이어로그
-                      } else {
-                        if (isAlert) {
-                          updateAlertStatus(
-                              taskId, userIndex, false); // alert 상태 업데이트
-                        }
-                      }
-                    },
-                    onTap: () async {
-                      if (ing == true) {
-                        null;
-                      } else {
-                        ing = true;
-                        var querySnapshot = await FirebaseFirestore.instance
-                            .collection('posts')
-                            .where('related_task_id', isEqualTo: taskId)
-                            .get();
-                        if (querySnapshot.docs.isNotEmpty) {
-                          var postDoc = querySnapshot.docs.first;
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (context) => PostDetailPage(
-                                post: postDoc.data(),
-                                documentId: postDoc.id,
-                              ),
-                            ),
-                          );
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (formattedFinished != '')
+                            Text(formattedFinished,
+                                style: TextStyle(
+                                    color: selectedState == 2
+                                        ? Colors.grey
+                                        : Colors.black,
+                                    fontSize: 10)),
+                          if (task['task_script'] != '')
+                            Text(task['task_script'], style: textStyle),
+                          if (formattedFinished == '' &&
+                              task['task_script'] == '')
+                            const SizedBox(
+                              height: 9,
+                            )
+                        ],
+                      ),
+                      tileColor: isAlert ? Colors.redAccent : Color(0x00F5F5F5),
+                      // 색상 변경
+                      onLongPress: () {
+                        if (task['managed_by'] == '') {
+                          showEditTaskDialog(task);
+                          //개인업무 수정 다이어로그
                         } else {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('관련 포스트를 찾을 수 없습니다')),
-                          );
-                        }
-                        ing = false;
-                      }
-                    },
-                    trailing: DropdownButton<int>(
-                      value: selectedState,
-                      style: TextStyle(
-                          color:
-                              selectedState == 2 ? Colors.grey : Colors.black),
-                      // 색상 설정
-                      items: stateOptions.entries.map((entry) {
-                        return DropdownMenuItem<int>(
-                          value: entry.key,
-                          child: Text(entry.value),
-                        );
-                      }).toList(),
-                      onChanged: (int? select) {
-                        setState(() {
-                          if (userIndex != -1) {
-                            stateList[userIndex] = select;
-                            FirebaseFirestore.instance
-                                .collection('tasks')
-                                .doc(task.id)
-                                .update({'state': stateList});
+                          if (isAlert) {
+                            updateAlertStatus(
+                                taskId, userIndex, false); // alert 상태 업데이트
                           }
-                        });
+                        }
                       },
+                      onTap: () async {
+                        if (ing == true) {
+                          null;
+                        } else {
+                          ing = true;
+                          var querySnapshot = await FirebaseFirestore.instance
+                              .collection('posts')
+                              .where('related_task_id', isEqualTo: taskId)
+                              .get();
+                          if (querySnapshot.docs.isNotEmpty) {
+                            var postDoc = querySnapshot.docs.first;
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (context) => PostDetailPage(
+                                  post: postDoc.data(),
+                                  documentId: postDoc.id,
+                                ),
+                              ),
+                            );
+                          } else {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('관련 포스트를 찾을 수 없습니다')),
+                            );
+                          }
+                          ing = false;
+                        }
+                      },
+                      trailing: DropdownButton<int>(
+                        value: selectedState,
+                        style: TextStyle(
+                            color:
+                                selectedState == 2 ? Colors.grey : Colors.black),
+                        // 색상 설정
+                        items: stateOptions.entries.map((entry) {
+                          return DropdownMenuItem<int>(
+                            value: entry.key,
+                            child: Text(entry.value),
+                          );
+                        }).toList(),
+                        onChanged: (int? select) {
+                          setState(() {
+                            if (userIndex != -1) {
+                              stateList[userIndex] = select;
+                              FirebaseFirestore.instance
+                                  .collection('tasks')
+                                  .doc(task.id)
+                                  .update({'state': stateList});
+                            }
+                          });
+                        },
+                      ),
                     ),
                   ));
             },
@@ -224,12 +230,6 @@ class _TasksPageState extends State<TasksPage> {
     TextEditingController taskScriptController =
         TextEditingController(text: currentTaskScript);
 
-    // 다이얼로그 내에서 finishedAt 날짜를 업데이트하기 위한 콜백
-    void updateFinishedAtDate(DateTime newDate) {
-      setState(() {
-        currentFinishedAt = newDate;
-      });
-    }
 
     showDialog(
       context: context,
@@ -350,8 +350,6 @@ class _TasksPageState extends State<TasksPage> {
           TextButton(
             child: const Text(
               '취소',
-              style: TextStyle(
-                  color: Color(0xFF505050), fontWeight: FontWeight.w600),
             ),
             //style: ButtonStyle(foregroundColor: Material),
             onPressed: () => Navigator.of(context).pop(false),
@@ -359,8 +357,6 @@ class _TasksPageState extends State<TasksPage> {
           TextButton(
             child: const Text(
               '삭제',
-              style: TextStyle(
-                  color: Color(0xFF505050), fontWeight: FontWeight.w600),
             ),
             onPressed: () {
               if (task['managed_by'] == '') {
@@ -461,15 +457,14 @@ class _AddTaskDialogState extends State<AddTaskDialog> {
             onChanged: (value) {
               taskName = value;
             },
-            cursorColor: const Color(0xFFAD8B73),
+            //cursorColor: const Color(0xFFAD8B73),
             decoration: const InputDecoration(
               labelText: '업무 이름',
-              labelStyle: TextStyle(color: Color(0xFF8D6B53)),
               focusedBorder: UnderlineInputBorder(
-                borderSide: BorderSide(color: Color(0xFF8D6B53)),
+                borderSide: BorderSide(),
               ),
               enabledBorder: UnderlineInputBorder(
-                borderSide: BorderSide(color: Color(0xFF8D6B53)),
+                borderSide: BorderSide(),
               ),
             ),
 
@@ -479,15 +474,14 @@ class _AddTaskDialogState extends State<AddTaskDialog> {
             onChanged: (value) {
               taskScript = value;
             },
-            cursorColor: const Color(0xFFAD8B73),
             decoration: const InputDecoration(
               labelText: '설명',
-              labelStyle: TextStyle(color: Color(0xFF8D6B53)),
+              //labelStyle: TextStyle(color: Color(0xFF8D6B53)),
               focusedBorder: UnderlineInputBorder(
-                borderSide: BorderSide(color: Color(0xFF8D6B53)),
+                borderSide: BorderSide(),
               ),
               enabledBorder: UnderlineInputBorder(
-                borderSide: BorderSide(color: Color(0xFF8D6B53)),
+                borderSide: BorderSide(),
               ),
             ),
             maxLines: 3,

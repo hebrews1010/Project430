@@ -28,7 +28,7 @@ class _CreatePostPageState extends State<CreatePostPage> {
   String relatedTaskName = '';
   bool isLoading = false;
   FirebaseStorage storage =
-      FirebaseStorage.instanceFor(bucket: 'gs://beolgyooffice.appspot.com');
+      FirebaseStorage.instanceFor(bucket: 'gs://four-thirty.firebasestorage.app');
 
   @override
   void initState() {
@@ -68,7 +68,7 @@ class _CreatePostPageState extends State<CreatePostPage> {
             ),
             TextField(
               controller: _descriptionController,
-              decoration: const InputDecoration(labelText: '설명'),
+              decoration: const InputDecoration(labelText: '내용'),
               maxLines: 3,
             ),
             const SizedBox(height: 10),
@@ -160,14 +160,14 @@ class _CreatePostPageState extends State<CreatePostPage> {
         // 이미지 업로드
         for (var image in _selectedImages) {
           File imageFile = File(image.path);
-          String image_url = await _uploadFileToStorage(imageFile, 'TeamToDo');
+          String image_url = await _uploadFileToStorage(imageFile, 'FourThirty');
           image_urls.add(image_url);
         }
 
         // 파일 업로드
         for (var file in _selectedFiles) {
           File fileToUpload = File(file.path);
-          String file_url = await _uploadFileToStorage(fileToUpload, 'TeamToDo');
+          String file_url = await _uploadFileToStorage(fileToUpload, 'FourThirty');
           file_urls.add(file_url);
         }
         List<String>? titleArr = [];
